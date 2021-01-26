@@ -22,6 +22,14 @@
 
 # COMMAND ----------
 
+# DBTITLE 1,Initialise path
+username = dbutils.notebook.entry_point.getDbutils().notebook().getContext().tags().apply('user')
+
+## Specify the path to delta tables on dbfs
+delta_root_path = "dbfs:/Users/" + username + "/rwd_ehr/delta"
+
+# COMMAND ----------
+
 # DBTITLE 1,Import Libraries and list csv files to download
 from pyspark.sql import functions as F, Window
 ehr_path = '/databricks-datasets/rwe/ehr/csv'
@@ -79,9 +87,6 @@ display(patients_obfuscated)
 
 # COMMAND ----------
 
-## Specify the path to delta tables on dbfs
-delta_root_path = "dbfs:/tmp/rishi.ghose@databricks.com/rwe-ehr/delta"
-
 ## to ensure fresh start we delete the path if it already exist
 dbutils.fs.rm(delta_root_path, recurse=True)
 
@@ -123,14 +128,6 @@ dbutils.fs.rm(delta_root_path, recurse=True)
 
 # COMMAND ----------
 
-display(dbutils.fs.ls(delta_root_path + '/patient_encounters'))
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
 # DBTITLE 1,create a table containing all patient encounters and save to delta
 patients = spark.read.format("delta").load(delta_root_path + '/patients').withColumnRenamed('Id', 'PATIENT')
 encounters = spark.read.format("delta").load(delta_root_path + '/encounters').withColumnRenamed('PROVIDER', 'ORGANIZATION')
@@ -150,57 +147,57 @@ organizations = spark.read.format("delta").load(delta_root_path + '/organization
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC 
-# MAGIC SELECT * FROM ..
+## Create Database
+spark.sql("""
+CREATE DATABASE IF NOT EXISTS rwd_hls
+    COMMENT "Database for real world data"
+    LOCATION "{}/databases";
+""".format(delta_root_path))
 
-# COMMAND ----------
+## Create encounters table
+spark.sql("DROP TABLE IF EXISTS rwd_hls.encounters;")
 
-# MAGIC %sql
-# MAGIC -- Create Database
-# MAGIC CREATE DATABASE IF NOT EXISTS rwd_hls
-# MAGIC     COMMENT "Database for real world data"
-# MAGIC     LOCATION "dbfs:/tmp/rishi.ghose@databricks.com/rwe-ehr/databases";
-# MAGIC 
-# MAGIC DROP TABLE IF EXISTS rwd_hls.encounters;
-# MAGIC 
-# MAGIC -- Create encounters table
-# MAGIC 
-# MAGIC CREATE TABLE IF NOT EXISTS rwd_hls.encounters
-# MAGIC USING DELTA
-# MAGIC LOCATION 'dbfs:/tmp/rishi.ghose@databricks.com/rwe-ehr/delta/encounters';
-# MAGIC 
-# MAGIC -- Create providers table
-# MAGIC 
-# MAGIC DROP TABLE IF EXISTS rwd_hls.providers;
-# MAGIC 
-# MAGIC CREATE TABLE IF NOT EXISTS rwd_hls.providers
-# MAGIC USING DELTA
-# MAGIC LOCATION 'dbfs:/tmp/rishi.ghose@databricks.com/rwe-ehr/delta/providers';
-# MAGIC 
-# MAGIC -- Create organizations table
-# MAGIC 
-# MAGIC DROP TABLE IF EXISTS rwd_hls.organizations;
-# MAGIC 
-# MAGIC CREATE TABLE IF NOT EXISTS rwd_hls.organizations
-# MAGIC USING DELTA
-# MAGIC LOCATION 'dbfs:/tmp/rishi.ghose@databricks.com/rwe-ehr/delta/organizations';
-# MAGIC 
-# MAGIC -- Create patients table
-# MAGIC 
-# MAGIC DROP TABLE IF EXISTS rwd_hls.patients;
-# MAGIC 
-# MAGIC CREATE TABLE IF NOT EXISTS rwd_hls.patients
-# MAGIC USING DELTA
-# MAGIC LOCATION 'dbfs:/tmp/rishi.ghose@databricks.com/rwe-ehr/delta/patients';
-# MAGIC 
-# MAGIC -- Create patient encounter table
-# MAGIC 
-# MAGIC DROP TABLE IF EXISTS rwd_hls.patient_encounters;
-# MAGIC 
-# MAGIC CREATE TABLE IF NOT EXISTS rwd_hls.patient_encounters
-# MAGIC USING DELTA
-# MAGIC LOCATION 'dbfs:/tmp/rishi.ghose@databricks.com/rwe-ehr/delta/patient_encounters';
+spark.sql("""
+CREATE TABLE IF NOT EXISTS rwd_hls.encounters
+USING DELTA
+LOCATION '{}/encounters';
+""".format(delta_root_path))
+
+## Create providers table
+spark.sql("DROP TABLE IF EXISTS rwd_hls.providers;")
+
+spark.sql("""
+CREATE TABLE IF NOT EXISTS rwd_hls.providers
+USING DELTA
+LOCATION '{}/providers';
+""".format(delta_root_path))
+
+## Create organizations table
+spark.sql("DROP TABLE IF EXISTS rwd_hls.organizations;")
+
+spark.sql("""
+CREATE TABLE IF NOT EXISTS rwd_hls.organizations
+USING DELTA
+LOCATION '{}/organizations';
+""".format(delta_root_path))
+
+## Create patients table
+spark.sql("DROP TABLE IF EXISTS rwd_hls.patients;")
+
+spark.sql("""
+CREATE TABLE IF NOT EXISTS rwd_hls.patients
+USING DELTA
+LOCATION '{}/patients';
+""".format(delta_root_path))
+
+## Create patient encounter table
+spark.sql("DROP TABLE IF EXISTS rwd_hls.patient_encounters;")
+
+spark.sql("""
+CREATE TABLE IF NOT EXISTS rwd_hls.patient_encounters
+USING DELTA
+LOCATION '{}/patient_encounters';
+""".format(delta_root_path))
 
 # COMMAND ----------
 
